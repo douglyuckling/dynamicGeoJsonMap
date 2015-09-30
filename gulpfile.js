@@ -33,11 +33,13 @@ gulp.task('convert-to-topojson', function() {
         .pipe(gulp.dest('dist/'));
 });
 
-gulp.task('connect', function () {
-  connect.server({
-    root: 'dist/',
-    port: 8008
-  });
+gulp.task('connect', ['build'], function () {
+    gulp.watch(['./app/**/*'], ['build']);
+    connect.server({
+        root: 'dist/',
+        port: 8008,
+        livereload: true
+    });
 });
 
 gulp.task('build',
