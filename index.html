@@ -71,8 +71,9 @@ d3.json("uk.json", function(error, uk) {
         .projection(projection)
         .pointRadius(3);
 
+console.log(uk);
+    simplify.prepare(uk);
     var subunits = topojson.feature(uk, uk.objects.subunits);
-    simplify.prepare(subunits);
 
     var x = d3.scale.sqrt()
         .domain(simplify.getMinAndMaxArea(subunits))

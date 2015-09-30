@@ -4,7 +4,7 @@
     window.simplify = {
         prepare: function(geoJsonObject) {
             visitCoordinateArrays(geoJsonObject, function(coordinateArray, isRing) {
-                var minSegments = isRing ? 3 : 1;
+                var minSegments = isRing ? 3 : 2;
                 augmentLineStringCoordinatesWithAreaInformation(coordinateArray, minSegments);
                 // console.log(coordinateArray);
             });
@@ -70,6 +70,10 @@
                     visitCoordinateArraysInFeature(geometryObject);
                     break;
 
+                case 'Topology':
+                    visitCoordinateArraysInTopology(geometryObject);
+                    break;
+
                 default:
                     console.error("Unrecognized geometry type: " + geometryObject.type);
             }
@@ -130,6 +134,24 @@
             featureCollection.features.forEach(function(feature) {
                 visitCoordinateArraysInFeature(feature);
             });
+            // console.groupEnd();
+        }
+
+        function visitCoordinateArraysInTopology(topology) {
+            // console.group('Topology', topology);
+            topology.arcs.forEach(function(arc) {
+                visitCoordinateArraysInArc(arc);
+            });
+            // console.groupEnd();
+        }
+
+        function visitCoordinateArraysInArc(arc) {
+            // console.group('arc', topology);
+            var firstCoordinate = arc[0];
+            var lastCoordinate = arc[arc.length-1];
+            var isRing = firstCoordinate[0] === lastCoordinate[0] &&
+                firstCoordinate[1] === lastCoordinate[1];
+            visitFn(arc, isRing);
             // console.groupEnd();
         }
     }
