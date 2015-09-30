@@ -1,107 +1,137 @@
 (function() {
     'use strict';
 
-    function prepare(geoJsonObject) {
-        processGeometryObject(geoJsonObject);
-    }
+    window.simplify = {
+        prepare: function(geoJsonObject) {
+            visitCoordinateArrays(geoJsonObject, function(coordinateArray, isRing) {
+                var minSegments = isRing ? 3 : 1;
+                augmentLineStringCoordinatesWithAreaInformation(coordinateArray, minSegments);
+                // console.log(coordinateArray);
+            });
+        },
 
-    function processGeometryObject(geometryObject) {
-        switch (geometryObject.type) {
-            case 'Point':
-            case 'MultiPoint':
-                break;
+        getMinAndMaxArea: function(geoJsonObject) {
+            var min = Infinity;
+            var max = -Infinity;
 
-            case 'LineString':
-                processLineString(geometryObject);
-                break;
-            case 'MultiLineString':
-                processMultiLineString(geometryObject);
-                break;
-            case 'Polygon':
-                processPolygon(geometryObject);
-                break;
-            case 'MultiPolygon':
-                processMultiPolygon(geometryObject);
-                break;
-            case 'GeometryCollection':
-                processGeometryCollection(geometryObject);
-                break;
-            case 'FeatureCollection':
-                processFeatureCollection(geometryObject);
-                break;
-            case 'Feature':
-                processFeature(geometryObject);
-                break;
+            visitCoordinateArrays(geoJsonObject, function(coordinateArray, isRing) {
+                coordinateArray.forEach(function(coordinate) {
+                    if (coordinate[2] < min) {
+                        min = coordinate[2];
+                    }
+                    if (coordinate[2] > max) {
+                        max = coordinate[2];
+                    }
+                });
+            });
 
-            default:
-                console.error("Unrecognized geometry type: " + geometryObject.type);
+            return [min, max];
+        },
+
+        getTotalNumberOfCoordinates: function(geoJsonObject) {
+            var totalCoordinates = 0;
+
+            visitCoordinateArrays(geoJsonObject, function(coordinateArray, isRing) {
+                totalCoordinates += coordinateArray.length;
+            });
+
+            return totalCoordinates;
         }
-    }
+    };
 
-    function processLineString(lineString) {
-        console.group('LineString', lineString);
-        processLineStringCoordinates(lineString.coordinates);
-        console.groupEnd();
-    }
+    function visitCoordinateArrays(geometryObject, visitFn) {
+        visitCoordinateArraysInGeometryObject(geometryObject);
 
-    function processLineStringCoordinates(lineStringCoordinates) {
-        console.group('line string coordinates', lineStringCoordinates);
-        augmentLineStringCoordinatesWithAreaInformation(lineStringCoordinates, 1);
-        console.log(lineStringCoordinates);
-        console.groupEnd();
-    }
+        function visitCoordinateArraysInGeometryObject(geometryObject) {
+            switch (geometryObject.type) {
+                case 'Point':
+                case 'MultiPoint':
+                    break;
 
-    function processMultiLineString(multiLineString) {
-        console.group('MultiLineString', multiLineString);
-        multiLineString.coordinates.forEach(function(lineStringCoordinates) {
-            processLineStringCoordinates(lineStringCoordinates);
-        });
-        console.groupEnd();
-    }
+                case 'LineString':
+                    visitCoordinateArraysInLineString(geometryObject);
+                    break;
+                case 'MultiLineString':
+                    visitCoordinateArraysInMultiLineString(geometryObject);
+                    break;
+                case 'Polygon':
+                    visitCoordinateArraysInPolygon(geometryObject);
+                    break;
+                case 'MultiPolygon':
+                    visitCoordinateArraysInMultiPolygon(geometryObject);
+                    break;
+                case 'GeometryCollection':
+                    visitCoordinateArraysInGeometryCollection(geometryObject);
+                    break;
+                case 'FeatureCollection':
+                    visitCoordinateArraysInFeatureCollection(geometryObject);
+                    break;
+                case 'Feature':
+                    visitCoordinateArraysInFeature(geometryObject);
+                    break;
 
-    function processPolygon(polygon) {
-        console.group('Polygon', polygon);
-        processPolygonCoordinates(polygon.coordinates);
-        console.groupEnd();
-    }
+                default:
+                    console.error("Unrecognized geometry type: " + geometryObject.type);
+            }
+        }
 
-    function processPolygonCoordinates(polygonCoordinates) {
-        console.group('polygon coordinate array', polygonCoordinates);
-        polygonCoordinates.forEach(function(linearRingCoordinates) {
-            augmentLineStringCoordinatesWithAreaInformation(linearRingCoordinates, 3);
-            console.log(linearRingCoordinates);
-        });
-        console.groupEnd();
-    }
+        function visitCoordinateArraysInLineString(lineString) {
+            // console.group('LineString', lineString);
+            visitFn(lineString.coordinates, false);
+            // console.groupEnd();
+        }
 
-    function processMultiPolygon(multiPolygon) {
-        console.group('MultiPolygon', multiPolygon);
-        multiPolygon.coordinates.forEach(function(polygonCoordinates) {
-            processPolygonCoordinates(polygonCoordinates);
-        });
-        console.groupEnd();
-    }
+        function visitCoordinateArraysInMultiLineString(multiLineString) {
+            // console.group('MultiLineString', multiLineString);
+            multiLineString.coordinates.forEach(function(lineStringCoordinates) {
+                visitFn(lineStringCoordinates, false);
+            });
+            // console.groupEnd();
+        }
 
-    function processGeometryCollection(geometryCollection) {
-        console.group('GeometryCollection', geometryCollection);
-        geometryCollection.geometries.forEach(function(geometry) {
-            processGeometryObject(geometry);
-        });
-        console.groupEnd();
-    }
+        function visitCoordinateArraysInPolygon(polygon) {
+            // console.group('Polygon', polygon);
+            visitCoordinateArraysInPolygonCoordinates(polygon.coordinates);
+            // console.groupEnd();
+        }
 
-    function processFeature(feature) {
-        console.group('Feature', feature);
-        processGeometryObject(feature.geometry);
-        console.groupEnd();
-    }
+        function visitCoordinateArraysInPolygonCoordinates(polygonCoordinates) {
+            // console.group('polygon coordinate array', polygonCoordinates);
+            polygonCoordinates.forEach(function(linearRingCoordinates) {
+                visitFn(linearRingCoordinates, true);
+            });
+            // console.groupEnd();
+        }
 
-    function processFeatureCollection(featureCollection) {
-        console.group('FeatureCollection', featureCollection);
-        featureCollection.features.forEach(function(feature) {
-            processFeature(feature);
-        });
-        console.groupEnd();
+        function visitCoordinateArraysInMultiPolygon(multiPolygon) {
+            // console.group('MultiPolygon', multiPolygon);
+            multiPolygon.coordinates.forEach(function(polygonCoordinates) {
+                visitCoordinateArraysInPolygonCoordinates(polygonCoordinates);
+            });
+            // console.groupEnd();
+        }
+
+        function visitCoordinateArraysInGeometryCollection(geometryCollection) {
+            // console.group('GeometryCollection', geometryCollection);
+            geometryCollection.geometries.forEach(function(geometry) {
+                visitCoordinateArraysInGeometryObject(geometry);
+            });
+            // console.groupEnd();
+        }
+
+        function visitCoordinateArraysInFeature(feature) {
+            // console.group('Feature', feature);
+            visitCoordinateArraysInGeometryObject(feature.geometry);
+            // console.groupEnd();
+        }
+
+        function visitCoordinateArraysInFeatureCollection(featureCollection) {
+            // console.group('FeatureCollection', featureCollection);
+            featureCollection.features.forEach(function(feature) {
+                visitCoordinateArraysInFeature(feature);
+            });
+            // console.groupEnd();
+        }
     }
 
     function augmentLineStringCoordinatesWithAreaInformation(coordinates, minSegments) {
@@ -147,7 +177,4 @@
 
     }
 
-    window.simplify = {
-        prepare: prepare
-    };
 })();

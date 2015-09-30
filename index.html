@@ -3,10 +3,26 @@
 <style>
 body { margin: 0; }
 
+.background {
+    fill: hsl(0, 0%, 100%);
+    stroke: none;
+}
+
+.shapes {
+    pointer-events: none;
+}
+
 .subunit {
     fill: hsl(0, 0%, 75%);
     stroke: hsl(0, 0%, 100%);
 }
+
+text {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 64px;
+    pointer-events: none;
+}
+
 </style>
 <body>
 <script src="http://d3js.org/d3.v3.min.js"></script>
@@ -18,9 +34,29 @@ body { margin: 0; }
 var width = 900,
     height = 1088;
 
+var formatArea = d3.format(".2r"),
+    formatPercent = d3.format(".2%");
+
+var path = d3.geo.path()
+    .projection(function(d) { return [d[0], d[1]]; });
+
 var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height);
+
+var background = svg.append('rect')
+    .attr('class', 'background')
+    .attr('width', width)
+    .attr('height', height);
+
+var shapes = svg.append('g')
+    .attr('class', 'shapes');
+
+var text = svg.append("text")
+    .attr("x", width / 2)
+    .attr("y", height / 2)
+    .attr("dy", ".35em")
+    .attr("text-anchor", "middle");
 
 d3.json("uk.json", function(error, uk) {
     if (error) return console.error(error);
@@ -38,11 +74,45 @@ d3.json("uk.json", function(error, uk) {
     var subunits = topojson.feature(uk, uk.objects.subunits);
     simplify.prepare(subunits);
 
-    svg.selectAll(".subunit")
-            .data(topojson.feature(uk, uk.objects.subunits).features)
-        .enter().append("path")
-            .attr("class", function(d) { return "subunit " + d.id; })
-            .attr("d", path);
+    var x = d3.scale.sqrt()
+        .domain(simplify.getMinAndMaxArea(subunits))
+        .range([0, width]);
+    var minArea = 0;
+    var m = simplify.getTotalNumberOfCoordinates(subunits);
+
+    redraw();
+    background.on('mousemove', function() {
+        minArea = x.invert(d3.mouse(this)[0]);
+        redraw();
+    });
+
+
+    function redraw() {
+        var n = 0;
+
+        var subunitShapes = shapes.selectAll(".subunit")
+            .data(subunits.features);
+
+        subunitShapes.enter().append("path")
+            .attr("class", function(d) { return "subunit " + d.id; });
+
+        subunitShapes
+            .attr("d", function(d) {
+                var mappedCoordinates = d.geometry.coordinates.map(function(polygon) {
+                    return polygon.map(function(lineString) {
+                        return lineString.filter(function(point) {
+                          return !(point[2] < minArea) && ++n;
+                        });
+                    });
+                });
+                return path({
+                    type: "MultiPolygon",
+                    coordinates: mappedCoordinates
+                })
+            });
+
+        text.text(formatArea(minArea) + "sr / " + formatPercent(n / m));
+    }
 
 });
 
