@@ -3,6 +3,7 @@ var connect = require('gulp-connect');
 var clean = require('gulp-clean');
 var rename = require("gulp-rename");
 var convertToTopoJson = require('./convertToTopoJson.js');
+var geojsonSimplification = require('./geojsonSimplification.js');
 
 gulp.task('clean', function() {
     gulp.src('./dist/*')
@@ -27,6 +28,7 @@ gulp.task('convert-to-topojson', function() {
             },
             quantization: null
         }))
+        .pipe(geojsonSimplification.enrichWithAreaInformation.gulp())
         .pipe(rename('uk.topo.json'))
         .pipe(gulp.dest('dist/'));
 });
