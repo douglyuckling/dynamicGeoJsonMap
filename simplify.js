@@ -165,6 +165,12 @@
             coordinates = _(coordinates).without(removedCoordinate);
         }
 
+        coordinates.forEach(function(coordinate) {
+            while (coordinate.length > 2) {
+                coordinate.pop();
+            }
+        });
+
         function sphericalAreaOfTriangleFormedByCoordinates(c0, c1, c2) {
             var triangle = {
                 'type': 'Polygon',
