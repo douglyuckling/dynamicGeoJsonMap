@@ -11,6 +11,8 @@ body { margin: 0; }
 <body>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+<script src="simplify.js"></script>
 <script>
 
 var width = 900,
@@ -32,6 +34,9 @@ d3.json("uk.json", function(error, uk) {
     var path = d3.geo.path()
         .projection(projection)
         .pointRadius(3);
+
+    var subunits = topojson.feature(uk, uk.objects.subunits);
+    simplify.prepare(subunits);
 
     svg.selectAll(".subunit")
             .data(topojson.feature(uk, uk.objects.subunits).features)
