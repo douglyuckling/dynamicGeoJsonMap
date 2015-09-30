@@ -37,9 +37,6 @@ var width = 900,
 var formatArea = d3.format(".2r"),
     formatPercent = d3.format(".2%");
 
-var path = d3.geo.path()
-    .projection(function(d) { return [d[0], d[1]]; });
-
 var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height);
@@ -61,15 +58,12 @@ var text = svg.append("text")
 d3.json("uk.json", function(error, uk) {
     if (error) return console.error(error);
 
-    var projection = d3.geo.albers()
+    var albersProjection = d3.geo.albers()
         .center([0, 55.4])
         .rotate([4.4, 0])
         .parallels([50, 60])
         .scale(5625)
         .translate([width / 2, height / 2]);
-    var path = d3.geo.path()
-        .projection(projection)
-        .pointRadius(3);
 
 console.log(uk);
     simplify.prepare(uk);
@@ -91,6 +85,23 @@ console.log(uk);
     function redraw() {
         var n = 0;
 
+        var filterPoints = d3.geo.transform({
+          point: function(x, y, z) {
+            if (!(z < minArea)) {
+                n++;
+                this.stream.point(x, y);
+            }
+          }
+        });
+
+        var path = d3.geo.path()
+            .projection({
+                stream: function(s) {
+                    return filterPoints.stream(albersProjection.stream(s));
+                }
+            })
+            .pointRadius(3);
+
         var subunitShapes = shapes.selectAll(".subunit")
             .data(subunits.features);
 
@@ -98,19 +109,7 @@ console.log(uk);
             .attr("class", function(d) { return "subunit " + d.id; });
 
         subunitShapes
-            .attr("d", function(d) {
-                var mappedCoordinates = d.geometry.coordinates.map(function(polygon) {
-                    return polygon.map(function(lineString) {
-                        return lineString.filter(function(point) {
-                          return !(point[2] < minArea) && ++n;
-                        });
-                    });
-                });
-                return path({
-                    type: "MultiPolygon",
-                    coordinates: mappedCoordinates
-                })
-            });
+            .attr("d", path);
 
         text.text(formatArea(minArea) + "sr / " + formatPercent(n / m));
     }
