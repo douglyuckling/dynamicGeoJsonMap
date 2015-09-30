@@ -55,7 +55,7 @@ var text = svg.append("text")
     .attr("dy", ".35em")
     .attr("text-anchor", "middle");
 
-d3.json("uk.json", function(error, uk) {
+d3.json("uk.geo.json", function(error, uk) {
     if (error) return console.error(error);
 
     var albersProjection = d3.geo.albers()
