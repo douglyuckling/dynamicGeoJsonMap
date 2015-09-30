@@ -69,27 +69,32 @@ console.log(uk);
     simplify.prepare(uk);
     var subunits = topojson.feature(uk, uk.objects.subunits);
 
-    var x = d3.scale.sqrt()
-        .domain(simplify.getMinAndMaxArea(subunits))
-        .range([0, width]);
-    var minArea = 0;
-    var m = simplify.getTotalNumberOfCoordinates(subunits);
+    var maxArea = 0;
+    redraw(0);
 
-    redraw();
+    var x = d3.scale.sqrt()
+        .domain([0, maxArea])
+        .range([0, width]);
+
     background.on('mousemove', function() {
-        minArea = x.invert(d3.mouse(this)[0]);
-        redraw();
+        var minArea = x.invert(d3.mouse(this)[0]);
+        redraw(minArea);
     });
 
 
-    function redraw() {
+    function redraw(minArea) {
+        var m = 0;
         var n = 0;
 
         var filterPoints = d3.geo.transform({
           point: function(x, y, z) {
+            m++;
             if (!(z < minArea)) {
                 n++;
                 this.stream.point(x, y);
+            }
+            if (z > maxArea) {
+                maxArea = z;
             }
           }
         });

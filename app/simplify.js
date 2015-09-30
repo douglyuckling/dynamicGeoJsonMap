@@ -8,34 +8,6 @@
                 augmentLineStringCoordinatesWithAreaInformation(coordinateArray, minSegments);
                 // console.log(coordinateArray);
             });
-        },
-
-        getMinAndMaxArea: function(geoJsonObject) {
-            var min = Infinity;
-            var max = -Infinity;
-
-            visitCoordinateArrays(geoJsonObject, function(coordinateArray, isRing) {
-                coordinateArray.forEach(function(coordinate) {
-                    if (coordinate[2] < min) {
-                        min = coordinate[2];
-                    }
-                    if (coordinate[2] > max) {
-                        max = coordinate[2];
-                    }
-                });
-            });
-
-            return [min, max];
-        },
-
-        getTotalNumberOfCoordinates: function(geoJsonObject) {
-            var totalCoordinates = 0;
-
-            visitCoordinateArrays(geoJsonObject, function(coordinateArray, isRing) {
-                totalCoordinates += coordinateArray.length;
-            });
-
-            return totalCoordinates;
         }
     };
 
