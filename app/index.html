@@ -68,6 +68,9 @@ var tspan2 = text.append('tspan')
     .attr('y', text.attr('y'))
     .attr('dy', '1.45em');
 
+var clip = d3.geo.clipExtent()
+    .extent([[0, 0], [width, height]]);
+
 d3.json("uk.topo.json", function(error, uk) {
     if (error) return console.error(error);
 
@@ -125,7 +128,7 @@ d3.json("uk.topo.json", function(error, uk) {
         var path = d3.geo.path()
             .projection({
                 stream: function(s) {
-                    return filterPoints.stream(albersProjection.stream(s));
+                    return filterPoints.stream(albersProjection.stream(clip.stream(s)));
                 }
             })
             .pointRadius(3);
