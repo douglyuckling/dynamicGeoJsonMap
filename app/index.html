@@ -30,11 +30,16 @@ text {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script>
 
-var width = 900,
-    height = 1088;
+var width = 900;
+var height = 1088;
+var baseScale = 5625;
 
 var formatArea = d3.format(".2r"),
     formatPercent = d3.format(".2%");
+
+var zoom = d3.behavior.zoom()
+    .scale(baseScale)
+    .translate([width / 2, height / 2]);
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)
@@ -43,7 +48,8 @@ var svg = d3.select("body").append("svg")
 var background = svg.append('rect')
     .attr('class', 'background')
     .attr('width', width)
-    .attr('height', height);
+    .attr('height', height)
+    .call(zoom);
 
 var shapes = svg.append('g')
     .attr('class', 'shapes');
@@ -53,41 +59,60 @@ var text = svg.append("text")
     .attr("y", height / 2)
     .attr("dy", ".35em")
     .attr("text-anchor", "middle");
+var tspan1 = text.append('tspan')
+    .attr('x', text.attr('x'))
+    .attr('y', text.attr('y'))
+    .attr('dy', '.35em');
+var tspan2 = text.append('tspan')
+    .attr('x', text.attr('x'))
+    .attr('y', text.attr('y'))
+    .attr('dy', '1.45em');
 
 d3.json("uk.topo.json", function(error, uk) {
     if (error) return console.error(error);
+
+    var subunits = topojson.feature(uk, uk.objects.subunits);
+
+    var areaInSteradians = d3.geo.area(subunits);
 
     var albersProjection = d3.geo.albers()
         .center([0, 55.4])
         .rotate([4.4, 0])
         .parallels([50, 60])
-        .scale(5625)
-        .translate([width / 2, height / 2]);
+        .scale(zoom.scale())
+        .translate(zoom.translate());
 
-console.log(uk);
-    var subunits = topojson.feature(uk, uk.objects.subunits);
+    var areaInPixels = d3.geo.path().projection(albersProjection).area(subunits);
+    var baseSteradiansPerSquarePixels = areaInSteradians / areaInPixels;
+    console.log(baseSteradiansPerSquarePixels);
 
     var maxArea = 0;
-    redraw(0);
+    redraw(baseSteradiansPerSquarePixels);
 
     var x = d3.scale.sqrt()
         .domain([0, maxArea])
         .range([0, width]);
 
-    background.on('mousemove', function() {
-        var minArea = x.invert(d3.mouse(this)[0]);
-        redraw(minArea);
+    zoom.on('zoom', function() {
+        var magnification = d3.event.scale / baseScale;
+        var steradiansPerSquarePixels = baseSteradiansPerSquarePixels / Math.pow(magnification, 2);
+
+        albersProjection
+            .scale(d3.event.scale)
+            .translate(d3.event.translate);
+        redraw(steradiansPerSquarePixels);
     });
 
+    function redraw(steradiansPerSquarePixels) {
+        console.time('redraw');
 
-    function redraw(minArea) {
         var m = 0;
         var n = 0;
 
         var filterPoints = d3.geo.transform({
           point: function(x, y, z) {
             m++;
-            if (!(z < minArea)) {
+            if (!(z < steradiansPerSquarePixels)) {
                 n++;
                 this.stream.point(x, y);
             }
@@ -114,7 +139,10 @@ console.log(uk);
         subunitShapes
             .attr("d", path);
 
-        text.text(formatArea(minArea) + "sr / " + formatPercent(n / m));
+        tspan1.text(formatArea(steradiansPerSquarePixels) + "sr/px²");
+        tspan2.text(formatPercent(n / m) + " of pts");
+
+        console.timeEnd('redraw');
     }
 
 });
