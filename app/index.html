@@ -57,9 +57,10 @@ text {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 <script>
 
-var width = 900;
-var height = 1088;
-var baseScale = 5625;
+var width = 960;
+var height = 750;
+var padding = 150;
+var baseScale = 235;
 
 var formatArea = d3.format(".2r");
 var formatPercent = d3.format(".2%");
@@ -67,7 +68,7 @@ var formatFps = d3.format(".2r");
 
 var zoom = d3.behavior.zoom()
     .scale(baseScale)
-    .scaleExtent([175, 300000])
+    .scaleExtent([235, 300000])
     .translate([width / 2, height / 2]);
 
 var svg = d3.select("body").append("svg")
@@ -127,10 +128,7 @@ d3.json("uk.topo.json", function(error, uk) {
 
     var areaInSteradians = d3.geo.area(subunits);
 
-    var baseProjection = d3.geo.albers()
-        .center([0, 55.4])
-        .rotate([4.4, 0])
-        .parallels([50, 60])
+    var baseProjection = d3.geo.equirectangular()
         .scale(zoom.scale())
         .translate(zoom.translate());
 
@@ -163,7 +161,6 @@ d3.json("uk.topo.json", function(error, uk) {
     }
 
     function renderFeatures(minAreaInSteradians) {
-        var padding = 150;
         var viewportPolygonInGeoCoordinates = {
             type: 'Polygon',
             coordinates: [
