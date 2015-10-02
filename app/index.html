@@ -34,8 +34,9 @@ var width = 900;
 var height = 1088;
 var baseScale = 5625;
 
-var formatArea = d3.format(".2r"),
-    formatPercent = d3.format(".2%");
+var formatArea = d3.format(".2r");
+var formatPercent = d3.format(".2%");
+var formatFps = d3.format(".2r");
 
 var zoom = d3.behavior.zoom()
     .scale(baseScale)
@@ -67,6 +68,10 @@ var tspan2 = text.append('tspan')
     .attr('x', text.attr('x'))
     .attr('y', text.attr('y'))
     .attr('dy', '1.45em');
+var tspan3 = text.append('tspan')
+    .attr('x', text.attr('x'))
+    .attr('y', text.attr('y'))
+    .attr('dy', '2.55em');
 
 var clip = d3.geo.clipExtent()
     .extent([[0, 0], [width, height]]);
@@ -85,15 +90,15 @@ d3.json("uk.topo.json", function(error, uk) {
         .scale(zoom.scale())
         .translate(zoom.translate());
 
+    var baseMetrics = renderFeatures(0);
     var areaInPixels = d3.geo.path().projection(albersProjection).area(subunits);
     var baseSteradiansPerSquarePixels = areaInSteradians / areaInPixels;
     console.log(baseSteradiansPerSquarePixels);
 
-    var maxArea = 0;
     redraw(baseSteradiansPerSquarePixels);
 
     var x = d3.scale.sqrt()
-        .domain([0, maxArea])
+        .domain([0, baseMetrics.maxArea])
         .range([0, width]);
 
     zoom.on('zoom', function() {
@@ -107,20 +112,30 @@ d3.json("uk.topo.json", function(error, uk) {
     });
 
     function redraw(steradiansPerSquarePixels) {
-        console.time('redraw');
+        var metrics = renderFeatures(steradiansPerSquarePixels);
 
-        var m = 0;
-        var n = 0;
+        tspan1.text(formatArea(steradiansPerSquarePixels) + " sr/px²");
+        tspan2.text(formatPercent(metrics.pointsProjected / baseMetrics.totalPoints) + " of pts");
+        tspan3.text(formatFps(1000 / metrics.renderTime) + " fps");
+    }
+
+    function renderFeatures(minAreaInSteradians) {
+        var beginTime = performance.now();
+        var metrics = {
+            totalPoints: 0,
+            pointsProjected: 0,
+            maxArea: 0
+        };
 
         var filterPoints = d3.geo.transform({
           point: function(x, y, z) {
-            m++;
-            if (!(z < steradiansPerSquarePixels)) {
-                n++;
+            metrics.totalPoints++;
+            if (!(z < minAreaInSteradians)) {
                 this.stream.point(x, y);
+                metrics.pointsProjected++;
             }
-            if (z > maxArea) {
-                maxArea = z;
+            if (z > metrics.maxArea) {
+                metrics.maxArea = z;
             }
           }
         });
@@ -142,10 +157,9 @@ d3.json("uk.topo.json", function(error, uk) {
         subunitShapes
             .attr("d", path);
 
-        tspan1.text(formatArea(steradiansPerSquarePixels) + "sr/px²");
-        tspan2.text(formatPercent(n / m) + " of pts");
+        metrics.renderTime = performance.now() - beginTime;
 
-        console.timeEnd('redraw');
+        return metrics;
     }
 
 });
