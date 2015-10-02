@@ -127,7 +127,7 @@ d3.json("uk.topo.json", function(error, uk) {
 
     var areaInSteradians = d3.geo.area(subunits);
 
-    var albersProjection = d3.geo.albers()
+    var baseProjection = d3.geo.albers()
         .center([0, 55.4])
         .rotate([4.4, 0])
         .parallels([50, 60])
@@ -135,7 +135,7 @@ d3.json("uk.topo.json", function(error, uk) {
         .translate(zoom.translate());
 
     var baseMetrics = renderFeatures(0);
-    var areaInPixels = d3.geo.path().projection(albersProjection).area(subunits);
+    var areaInPixels = d3.geo.path().projection(baseProjection).area(subunits);
     var baseSteradiansPerSquarePixels = areaInSteradians / areaInPixels;
 
     redraw(baseSteradiansPerSquarePixels);
@@ -148,7 +148,7 @@ d3.json("uk.topo.json", function(error, uk) {
         var magnification = d3.event.scale / baseScale;
         var steradiansPerSquarePixels = baseSteradiansPerSquarePixels / Math.pow(magnification, 2);
 
-        albersProjection
+        baseProjection
             .scale(d3.event.scale)
             .translate(d3.event.translate);
         redraw(steradiansPerSquarePixels);
@@ -170,7 +170,7 @@ d3.json("uk.topo.json", function(error, uk) {
                 createLinearRingFromBounds([
                     [0+padding, height-padding],
                     [width-padding, 0+padding]
-                ]).map(albersProjection.invert)
+                ]).map(baseProjection.invert)
             ]
         };
         var viewportBounds = d3.geo.bounds(viewportPolygonInGeoCoordinates);
@@ -198,7 +198,7 @@ d3.json("uk.topo.json", function(error, uk) {
         var path = d3.geo.path()
             .projection({
                 stream: function(s) {
-                    return filterPoints.stream(albersProjection.stream(clip.stream(s)));
+                    return filterPoints.stream(baseProjection.stream(clip.stream(s)));
                 }
             });
 
@@ -217,7 +217,7 @@ d3.json("uk.topo.json", function(error, uk) {
         subunitShapes
             .attr("d", path);
 
-        var boundsPath = d3.geo.path().projection(albersProjection);
+        var boundsPath = d3.geo.path().projection(baseProjection);
 
         viewportPath
             .datum(viewportPolygonInGeoCoordinates)
