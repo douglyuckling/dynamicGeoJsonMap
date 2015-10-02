@@ -44,6 +44,7 @@ var formatFps = d3.format(".2r");
 
 var zoom = d3.behavior.zoom()
     .scale(baseScale)
+    .scaleExtent([175, 300000])
     .translate([width / 2, height / 2]);
 
 var svg = d3.select("body").append("svg")
