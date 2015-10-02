@@ -12,6 +12,10 @@ body { margin: 0; }
     pointer-events: none;
 }
 
+.ocean {
+    fill: hsl(180, 25%, 85%);
+}
+
 .subunit {
     fill: hsl(0, 0%, 75%);
     stroke: hsl(0, 0%, 100%);
@@ -55,6 +59,10 @@ var background = svg.append('rect')
 var shapes = svg.append('g')
     .attr('class', 'shapes');
 
+var ocean = shapes.append('path')
+    .attr('class', 'ocean')
+    .datum({type: 'Sphere'});
+
 var text = svg.append("text")
     .attr("x", width / 2)
     .attr("y", height / 2)
@@ -93,7 +101,6 @@ d3.json("uk.topo.json", function(error, uk) {
     var baseMetrics = renderFeatures(0);
     var areaInPixels = d3.geo.path().projection(albersProjection).area(subunits);
     var baseSteradiansPerSquarePixels = areaInSteradians / areaInPixels;
-    console.log(baseSteradiansPerSquarePixels);
 
     redraw(baseSteradiansPerSquarePixels);
 
@@ -145,8 +152,9 @@ d3.json("uk.topo.json", function(error, uk) {
                 stream: function(s) {
                     return filterPoints.stream(albersProjection.stream(clip.stream(s)));
                 }
-            })
-            .pointRadius(3);
+            });
+
+        ocean.attr('d', path);
 
         var subunitShapes = shapes.selectAll(".subunit")
             .data(subunits.features);
