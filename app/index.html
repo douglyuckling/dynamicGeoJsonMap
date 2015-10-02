@@ -132,7 +132,7 @@ d3.json("uk.topo.json", function(error, uk) {
         .scale(zoom.scale())
         .translate(zoom.translate());
 
-    var baseMetrics = renderFeatures(0);
+    var baseMetrics = renderFeatures(0, false);
     var areaInPixels = d3.geo.path().projection(baseProjection).area(subunits);
     var baseSteradiansPerSquarePixels = areaInSteradians / areaInPixels;
 
@@ -153,14 +153,14 @@ d3.json("uk.topo.json", function(error, uk) {
     });
 
     function redraw(steradiansPerSquarePixels) {
-        var metrics = renderFeatures(steradiansPerSquarePixels);
+        var metrics = renderFeatures(steradiansPerSquarePixels, true);
 
         tspan1.text(formatArea(steradiansPerSquarePixels) + " sr/px²");
         tspan2.text(formatPercent(metrics.pointsProjected / baseMetrics.totalPoints) + " of pts");
         tspan3.text(formatFps(1000 / metrics.renderTime) + " fps");
     }
 
-    function renderFeatures(minAreaInSteradians) {
+    function renderFeatures(minAreaInSteradians, cullFeaturesOutsideViewport) {
         var viewportPolygonInGeoCoordinates = {
             type: 'Polygon',
             coordinates: [
@@ -203,7 +203,11 @@ d3.json("uk.topo.json", function(error, uk) {
 
         var subunitShapes = shapes.selectAll(".subunit")
             .data(subunits.features.filter(function(d) {
-                return boundsOverlap(viewportBounds, d.properties.bounds);
+                if (cullFeaturesOutsideViewport) {
+                    return boundsOverlap(viewportBounds, d.properties.bounds);
+                } else {
+                    return true;
+                }
             }), function(d) { return d.id; });
 
         subunitShapes.enter().append("path")
@@ -237,7 +241,11 @@ d3.json("uk.topo.json", function(error, uk) {
                 });
             })
             .classed('culled', function(d) {
-                return !boundsOverlap(viewportBounds, d.properties.bounds);
+                if (cullFeaturesOutsideViewport) {
+                    return !boundsOverlap(viewportBounds, d.properties.bounds);
+                } else {
+                    return false;
+                }
             });
 
         viewportBoundsOutline
