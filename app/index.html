@@ -8,7 +8,7 @@ body { margin: 0; }
     stroke: none;
 }
 
-.shapes {
+.shapes, .bounds-outlines {
     pointer-events: none;
 }
 
@@ -19,6 +19,29 @@ body { margin: 0; }
 .subunit {
     fill: hsl(0, 0%, 75%);
     stroke: hsl(0, 0%, 100%);
+}
+
+.viewport {
+    fill: hsl(0, 0%, 75%);
+    stroke: none;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+
+.viewport-bounds-outline {
+    fill: none;
+    stroke: hsl(0, 0%, 0%);
+}
+
+.subunit-bounds-outline {
+    fill: none;
+    stroke-dasharray: 2, 2;
+    stroke: hsl(0, 0%, 50%);
+}
+
+.subunit-bounds-outline.culled {
+    fill: none;
+    stroke: hsl(0, 100%, 50%);
 }
 
 text {
@@ -64,6 +87,15 @@ var ocean = shapes.append('path')
     .attr('class', 'ocean')
     .datum({type: 'Sphere'});
 
+var viewportPath = svg.append('path')
+    .attr('class', 'viewport');
+
+var boundsOutlines = svg.append('g')
+    .attr('class', 'bounds-outlines');
+
+var viewportBoundsOutline = boundsOutlines.append('path')
+    .attr('class', 'viewport-bounds-outline');
+
 var text = svg.append("text")
     .attr("x", width / 2)
     .attr("y", height / 2)
@@ -89,6 +121,9 @@ d3.json("uk.topo.json", function(error, uk) {
     if (error) return console.error(error);
 
     var subunits = topojson.feature(uk, uk.objects.subunits);
+    subunits.features.forEach(function(subunit) {
+        subunit.properties['bounds'] = d3.geo.bounds(subunit);
+    });
 
     var areaInSteradians = d3.geo.area(subunits);
 
@@ -128,6 +163,18 @@ d3.json("uk.topo.json", function(error, uk) {
     }
 
     function renderFeatures(minAreaInSteradians) {
+        var padding = 150;
+        var viewportPolygonInGeoCoordinates = {
+            type: 'Polygon',
+            coordinates: [
+                createLinearRingFromBounds([
+                    [0+padding, height-padding],
+                    [width-padding, 0+padding]
+                ]).map(albersProjection.invert)
+            ]
+        };
+        var viewportBounds = d3.geo.bounds(viewportPolygonInGeoCoordinates);
+
         var beginTime = performance.now();
         var metrics = {
             totalPoints: 0,
@@ -158,17 +205,101 @@ d3.json("uk.topo.json", function(error, uk) {
         ocean.attr('d', path);
 
         var subunitShapes = shapes.selectAll(".subunit")
-            .data(subunits.features);
+            .data(subunits.features.filter(function(d) {
+                return boundsOverlap(viewportBounds, d.properties.bounds);
+            }), function(d) { return d.id; });
 
         subunitShapes.enter().append("path")
             .attr("class", function(d) { return "subunit " + d.id; });
 
+        subunitShapes.exit().remove();
+
         subunitShapes
             .attr("d", path);
+
+        var boundsPath = d3.geo.path().projection(albersProjection);
+
+        viewportPath
+            .datum(viewportPolygonInGeoCoordinates)
+            .attr('d', function(d) {
+                return 'M0 0 v' + height + ' h' + width + ' v' + (-height) + 'z'
+                + boundsPath(d);
+            });
+
+        var subunitBoundsOutlines = boundsOutlines.selectAll(".subunit-bounds-outline")
+            .data(subunits.features, function(d) { return d.id; });
+
+        subunitBoundsOutlines.enter().append("path")
+            .attr("class", function(d) { return "subunit-bounds-outline " + d.id; });
+
+        subunitBoundsOutlines
+            .attr('d', function(d) {
+                return boundsPath({
+                    type: 'Polygon',
+                    coordinates: [createLinearRingFromBounds(d.properties.bounds)]
+                });
+            })
+            .classed('culled', function(d) {
+                return !boundsOverlap(viewportBounds, d.properties.bounds);
+            });
+
+        viewportBoundsOutline
+            .datum(viewportBounds)
+            .attr('d', function(d) {
+                return boundsPath({
+                    type: 'Polygon',
+                    coordinates: [createLinearRingFromBounds(d)]
+                });
+            });
 
         metrics.renderTime = performance.now() - beginTime;
 
         return metrics;
+    }
+
+    function boundsOverlap(a, b) {
+        var dimensions = Object.keys(a[0]);
+        return _(dimensions).every(function(i) {
+            return a[0][i] < b[1][i] && b[0][i] < a[1][i];
+        });
+    }
+
+    function createLinearRingFromBounds(bounds) {
+        var x0 = bounds[0][0];
+        var x1 = bounds[1][0];
+        var y0 = bounds[0][1];
+        var y1 = bounds[1][1];
+
+        return interpolate([
+            [x0, y0],
+            [x0, y1],
+            [x1, y1],
+            [x1, y0],
+            [x0, y0],
+        ], 3);
+    }
+
+    function interpolate(points, iterations) {
+        while (iterations > 0) {
+            var interpolated = [];
+            for (var i=0, n=points.length-1; i < n; i++) {
+                interpolated.push(points[i]);
+                interpolated.push(midpoint(points[i], points[i+1]));
+            }
+            interpolated.push(points[points.length-1]);
+
+            points = interpolated;
+            iterations--;
+        }
+
+        return points;
+    }
+
+    function midpoint(p0, p1) {
+        var dimensions = Object.keys(p0);
+        return dimensions.map(function(i) {
+            return (p0[i] + p1[i]) / 2;
+        });
     }
 
 });
