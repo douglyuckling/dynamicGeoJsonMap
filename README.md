@@ -1,5 +1,7 @@
 # Dynamic Map Simplification with Simple Viewport-Based Culling #
 
+<em>Check out the [working example at bl.ocks.org](http://bl.ocks.org/douglyuckling/6014e32c72f85f14cb49).</em>
+
 This is a little example to experiment with high-performance interactive maps. Mike Bostock has several [examples of using dynamic simplification with maps](http://bl.ocks.org/mbostock/6287633), but I needed to expand on them in a few ways:
 
 * I want to change the projections on the fly, so I wanted to avoid baking a projection into my data.
