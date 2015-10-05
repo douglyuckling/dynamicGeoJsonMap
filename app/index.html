@@ -16,7 +16,7 @@ body { margin: 0; }
     fill: hsl(180, 25%, 85%);
 }
 
-.subunit {
+.country {
     fill: hsl(0, 0%, 75%);
     stroke: hsl(0, 0%, 100%);
 }
@@ -33,13 +33,13 @@ body { margin: 0; }
     stroke: hsl(0, 0%, 0%);
 }
 
-.subunit-bounds-outline {
+.country-bounds-outline {
     fill: none;
     stroke-dasharray: 2, 2;
     stroke: hsl(0, 0%, 50%);
 }
 
-.subunit-bounds-outline.culled {
+.country-bounds-outline.culled {
     fill: none;
     stroke: hsl(0, 100%, 50%);
 }
@@ -58,8 +58,8 @@ text {
 <script>
 
 var width = 960;
-var height = 750;
-var padding = 150;
+var height = 596;
+var padding = 100;
 var baseScale = 235;
 
 var formatArea = d3.format(".2r");
@@ -118,23 +118,33 @@ var tspan3 = text.append('tspan')
 var clip = d3.geo.clipExtent()
     .extent([[0, 0], [width, height]]);
 
-d3.json("uk.topo.json", function(error, uk) {
+d3.json("countries.topo.json", function(error, topojsonData) {
     if (error) return console.error(error);
 
-    var subunits = topojson.feature(uk, uk.objects.subunits);
-    subunits.features.forEach(function(subunit) {
-        subunit.properties['bounds'] = d3.geo.bounds(subunit);
+    console.time('preprocessing');
+    console.time('conversion to GeoJSON');
+    var countries = topojson.feature(topojsonData, topojsonData.objects.countries);
+    console.timeEnd('conversion to GeoJSON');
+    console.time('enrichment with bounds data');
+    countries.features.forEach(function(country) {
+        country.properties['bounds'] = d3.geo.bounds(country);
     });
+    console.timeEnd('enrichment with bounds data');
 
-    var areaInSteradians = d3.geo.area(subunits);
+    console.time('computation of total geographic area of countries');
+    var areaInSteradians = d3.geo.area(countries);
+    console.timeEnd('computation of total geographic area of countries');
 
-    var baseProjection = d3.geo.equirectangular()
+    var fundamentalProjection = d3.geo.equirectangular()
         .scale(zoom.scale())
         .translate(zoom.translate());
 
     var baseMetrics = renderFeatures(0, false);
-    var areaInPixels = d3.geo.path().projection(baseProjection).area(subunits);
+    console.time('computation of total projected area of countries');
+    var areaInPixels = d3.geo.path().projection(fundamentalProjection).area(countries);
+    console.timeEnd('computation of total projected area of countries');
     var baseSteradiansPerSquarePixels = areaInSteradians / areaInPixels;
+    console.timeEnd('preprocessing');
 
     redraw(baseSteradiansPerSquarePixels);
 
@@ -146,7 +156,7 @@ d3.json("uk.topo.json", function(error, uk) {
         var magnification = d3.event.scale / baseScale;
         var steradiansPerSquarePixels = baseSteradiansPerSquarePixels / Math.pow(magnification, 2);
 
-        baseProjection
+        fundamentalProjection
             .scale(d3.event.scale)
             .translate(d3.event.translate);
         redraw(steradiansPerSquarePixels);
@@ -167,7 +177,7 @@ d3.json("uk.topo.json", function(error, uk) {
                 createLinearRingFromBounds([
                     [0+padding, height-padding],
                     [width-padding, 0+padding]
-                ]).map(baseProjection.invert)
+                ]).map(fundamentalProjection.invert)
             ]
         };
         var viewportBounds = d3.geo.bounds(viewportPolygonInGeoCoordinates);
@@ -195,14 +205,14 @@ d3.json("uk.topo.json", function(error, uk) {
         var path = d3.geo.path()
             .projection({
                 stream: function(s) {
-                    return filterPoints.stream(baseProjection.stream(clip.stream(s)));
+                    return filterPoints.stream(fundamentalProjection.stream(clip.stream(s)));
                 }
             });
 
         ocean.attr('d', path);
 
-        var subunitShapes = shapes.selectAll(".subunit")
-            .data(subunits.features.filter(function(d) {
+        var countryShapes = shapes.selectAll(".country")
+            .data(countries.features.filter(function(d) {
                 if (cullFeaturesOutsideViewport) {
                     return boundsOverlap(viewportBounds, d.properties.bounds);
                 } else {
@@ -210,15 +220,15 @@ d3.json("uk.topo.json", function(error, uk) {
                 }
             }), function(d) { return d.id; });
 
-        subunitShapes.enter().append("path")
-            .attr("class", function(d) { return "subunit " + d.id; });
+        countryShapes.enter().append("path")
+            .attr("class", function(d) { return "country " + d.id; });
 
-        subunitShapes.exit().remove();
+        countryShapes.exit().remove();
 
-        subunitShapes
+        countryShapes
             .attr("d", path);
 
-        var boundsPath = d3.geo.path().projection(baseProjection);
+        var boundsPath = d3.geo.path().projection(fundamentalProjection);
 
         viewportPath
             .datum(viewportPolygonInGeoCoordinates)
@@ -227,13 +237,13 @@ d3.json("uk.topo.json", function(error, uk) {
                 + boundsPath(d);
             });
 
-        var subunitBoundsOutlines = boundsOutlines.selectAll(".subunit-bounds-outline")
-            .data(subunits.features, function(d) { return d.id; });
+        var countryBoundsOutlines = boundsOutlines.selectAll(".country-bounds-outline")
+            .data(countries.features, function(d) { return d.id; });
 
-        subunitBoundsOutlines.enter().append("path")
-            .attr("class", function(d) { return "subunit-bounds-outline " + d.id; });
+        countryBoundsOutlines.enter().append("path")
+            .attr("class", function(d) { return "country-bounds-outline " + d.id; });
 
-        subunitBoundsOutlines
+        countryBoundsOutlines
             .attr('d', function(d) {
                 return boundsPath({
                     type: 'Polygon',

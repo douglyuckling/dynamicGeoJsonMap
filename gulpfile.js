@@ -16,20 +16,20 @@ gulp.task('copy-app-files', function () {
 });
 
 gulp.task('convert-to-topojson', function() {
-    gulp.src('./uk.geo.json')
-        .pipe(convertToTopoJson.gulp('subunits', {
+    gulp.src('./countries.geo.json')
+        .pipe(convertToTopoJson.gulp('countries', {
             id: function(feature) {
-                return feature.properties.SU_A3;
+                return feature.properties.su_a3;
             },
             propertyTransform: function(feature) {
                 return {
-                    name: feature.properties.NAME
+                    name: feature.properties.name
                 };
             },
             quantization: null
         }))
         .pipe(geojsonSimplification.enrichWithAreaInformation.gulp())
-        .pipe(rename('uk.topo.json'))
+        .pipe(rename('countries.topo.json'))
         .pipe(gulp.dest('dist/'));
 });
 
